@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+# Kubernetes'in deployment'i taniyabilmesi icin apps/v1 kütüphanesini kullaniyoruz.
+kind: Deployment
+# Basit bir pod degil, cokunce otomatik yenilenen akilli bir Deployment olusturuyoruz.
+metadata:
+  name: eczane-web-deployment # Dosyayi ismen cagirabilmek icin verdigimiz isim.
+spec:
+  replicas: 3 # Sitemiz ayni anda 3 ayri pod (kopya) olarak calissin.
+  selector:
+    matchLabels:
+      app: eczane-frontend # Eczane-frontend etiketli podlari takip etmesini soyluyoruz.
+  template:
+    metadata:
+      labels:
+        app: eczane-frontend # Olusturulan her kopyaya bu etiketi yapistiriyoruz.
+    spec:
+      containers:
+        - name: eczane-php-konteyner # Konteynera verdigimiz ozel isim.
+          image: europe-west1-docker.pkg.dev/final-projesi-k8s/eczane-repo/eczane-app:latest
+          imagePullPolicy: Always
+          # NOT: Buradaki imaji 'latest' yerine '$COMMIT_SHA' yaptim. 
+          # Boylece Cloud Build her tetiklendiginde en guncel bastigi imaji buraya otomatik enjekte eder.
+          ports:
+            - containerPort: 80 # Konteynerin iceriden dinledigi port numarasi.
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eczane-db-gizli-bilgiler
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: eczane-db-gizli-bilgiler
+                  key: MYSQL_DATABASE
+---
+apiVersion: v1
+# Servisler v1 kütüphanesini kullanir.
+kind: Service
+# Kubernetes'e bir ag yonlendiricisi (Service) yaratmasini soyluyoruz.
+metadata:
+  name: eczane-loadbalancer # Bu servise verdigimiz kimlik ismi.
+spec:
+  type: LoadBalancer
+  # LoadBalancer yazdigimizda Google Cloud bizim icin disaridan erisilebilir gercek bir dis IP (External IP) olusturur.
+  selector:
+    app: eczane-frontend # Disaridan gelen trafigi al ve eczane-frontend etiketli podlara dagit.
+  ports:
+    - protocol: TCP # Standart iletisim protokolu.
+      port: 80 # Disaridaki kullanicinin tarayiciya girecegi port.
+      targetPort: 80 # Icerideki konteynerin hangi portuna yonlendirilecegini belirtir.
