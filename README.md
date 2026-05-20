@@ -1,3 +1,4 @@
+```mermaid
 graph TD
     %% Trafik Akisi
     Users((Kullanicilar)) -->|Internet| ExtIP[External IP Address]
